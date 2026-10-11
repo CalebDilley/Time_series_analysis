@@ -1,0 +1,130 @@
+---
+title: "Looking Past the Noise: Deconstructing Stock Market Trends"
+author: "Caleb Dilley"
+format:
+  html:
+    toc: true
+    code-fold: true
+    theme: cerulean
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+execute:
+  warning: false
+  message: false
+---
+
+# A Short Analysis of the S&P 500
+
+::: {.panel-tabset}
+
+## Overview & Background
+
+"The S&P 500 (Standard and Poor's 500) is a stock market index tracking the stock performance of 500 companies listed on stock exchanges in the United States that are considered to have large market capitalizations." [wikipedia.com](https://en.wikipedia.org/wiki/S%26P_500#cite_note-6)
+
+Above is a brief summary of the S&P 500. The S&P 500 is a market index rather than an individual stock, meaning you cannot purchase shares of the index directly.[^1] Because the S&P 500 accounts for nearly 80% of total U.S. market capitalization, its movements serve as a primary indicator of overall market health. For this reason, analyzing the underlying trends of the S&P 500 helps answer broader strategic questions about long-term stock market investment.
+
+[^1]: Investors can instead invest in index funds or Exchange-Traded Funds (ETFs) such as SPY, which allow you to essentially own a slice of each company in the index.
+
+## Visual Representations
+
+**Focus on the Trend for these 2 graphs**
+```{r}
+#| label: load-and-decompose-stocks
+library(tidyverse)
+library(tsibble)
+library(feasts)
+library(tidyquant)
+library(pander)
+
+stock_data <- tq_get("SPY", from = "2020-01-01", to = "2026-01-01") %>%
+  mutate(month = yearmonth(date)) %>%
+  group_by(month) %>%
+  summarise(Close = last(close)) %>%
+  as_tsibble(index = month)
+
+
+
+dcmp <- stock_data %>%
+  model(classical_decomposition(Close, type = "multiplicative"))
+
+
+comp_long <- components(dcmp) %>%
+  pivot_longer(
+    cols = c(Close, trend, seasonal, random),
+    names_to = "component",
+    values_to = "value"
+  ) %>%
+  mutate(
+    component = factor(
+      component,
+      levels = c("Close", "trend", "seasonal", "random"),
+      labels = c("Raw Data", "Trend", "Seasonal", "Random")
+    )
+  )
+
+ggplot(comp_long, aes(x = month, y = value, color = component)) +
+  geom_line(linewidth = 0.8) +
+  facet_grid(component ~ ., scales = "free_y") +
+  scale_color_manual(
+    values = c(
+      "Raw Data"          = "firebrick",
+      "Trend"             = "steelblue",
+      "Seasonal"          = "blue",
+      "Random" = "red"
+    )
+  ) +
+  labs(
+    title = "Multiplicative Decomposition of S&P 500",
+    x = "",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 10)
+  )
+```
+You will notice that the upward trend explains most of the data and not the tine of year or the randomness. While the price is effected by these the trend holds up despite them.
+
+
+```{r}
+comp_df <- components(dcmp)
+
+comp_df %>%
+  mutate(Trend_Dollar = trend) %>%
+  ggplot(aes(x = month)) +
+  geom_line(aes(y = Close, color = "Original Price"), linewidth = 1, alpha = 0.5) +
+  geom_line(aes(y = Trend_Dollar, color = "Underlying Trend"), linewidth = 1.2) +
+  labs(
+    title = "S&P 500: Original Price vs. Underlying Trend",
+    x = "",
+    y = "Index Value (USD)"
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = c("Original Price" = "#556", "Underlying Trend" = "#000")) +
+  theme(legend.position = "bottom")
+
+```
+
+
+## Numerical Summary
+
+Below we have the starting date and the ending date with the amount that the S&P 500 was worth at each:
+
+```{r}
+paste0(stock_data$month[1], ": ", round(as.numeric(stock_data$Close[1]), 3)) %>% pander()
+```
+```{r}
+paste0(stock_data$month[72], ": ", round(as.numeric(stock_data$Close[72]), 3)) %>% pander()
+```
+1. **Total Percentage Return (% Growth):** Over this 6 year span the S&P 500 made a 
+112% return. This means had you invested 1000\$ evenly split across the leading 500 companies you would have made approximately 1120\$ leaving you with 2120\$ total.
+
+
+## Interpretation
+
+Using the last 6 years as reference although there were dips in the overall value of the S&P 500 it more then doubled over the last 6 years. Therefore, it is a reasonable assumption that the stock market will continue increasing. This means that investing now is more valuable now than later as the stock market will continue to trend upwards.
+
+

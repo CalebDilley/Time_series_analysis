@@ -1,7 +1,7 @@
 ---
 title: "Looking Past the Noise: Deconstructing Stock Market Trends"
 author: "Caleb Dilley"
-format: 
+format:
   html:
     toc: true
     code-fold: true
